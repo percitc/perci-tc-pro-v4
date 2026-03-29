@@ -9,11 +9,15 @@ import logging, uvicorn
 from routers import upload, process, query, generate, ai_config
 from services.rag_service import rag_service
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 
-# --- RENDER FREE FIX: CREATE TEMP DIRECTORIES ---
-os.makedirs("/tmp/uploads", exist_ok=True)
-os.makedirs("/tmp/vectorstore", exist_ok=True)
+# ── Directorios temporales — nombres EXACTOS que usan las variables de entorno ─
+os.makedirs("/tmp/perci_uploads", exist_ok=True)
+os.makedirs("/tmp/perci_vectorstore", exist_ok=True)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,16 +33,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# --- CORS CONFIGURATION (FIXED FOR RENDER) ---
+# ── Middlewares ────────────────────────────────────────────────────────────────
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
-    CORSMiddleware, 
-    allow_origins=["*"], 
-    allow_credentials=False, 
-    allow_methods=["*"], 
-    allow_headers=["*"]
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+# ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(upload.router,    prefix="/upload",   tags=["Upload"])
 app.include_router(process.router,   prefix="/process",  tags=["Process"])
 app.include_router(query.router,     prefix="/query",    tags=["Query / Chat"])
@@ -49,12 +54,18 @@ app.include_router(ai_config.router, prefix="/ai",       tags=["AI Config"])
 @app.get("/")
 async def root():
     from services.ai import ai_router
-    return {"name": "PERCI TC PRO AI", "version": "4.0.0",
-            "providers_active": ai_router.available_providers(), "docs": "/docs"}
+    return {
+        "name": "PERCI TC PRO AI",
+        "version": "4.0.0",
+        "providers_active": ai_router.available_providers(),
+        "docs": "/docs",
+    }
+
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=False)
