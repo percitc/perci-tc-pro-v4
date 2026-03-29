@@ -24,8 +24,8 @@ openpyxl==3.1.4
 pandas==2.2.2
 Pillow==10.4.0
 
-# Audio / Video
-openai-whisper==20231117
+# Audio / Video (Versión corregida para Render)
+openai-whisper
 ffmpeg-python==0.2.0
 
 # OCR
