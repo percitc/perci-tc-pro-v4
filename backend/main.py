@@ -1,4 +1,5 @@
 """PERCI TC PRO AI v4 — Backend Principal"""
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -10,13 +11,15 @@ from services.rag_service import rag_service
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
+# --- FIX PARA RENDER GRATIS: CREAR CARPETAS EN /TMP ---
+os.makedirs("/tmp/uploads", exist_ok=True)
+os.makedirs("/tmp/vectorstore", exist_ok=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await rag_service.initialize()
     yield
     await rag_service.cleanup()
-
 
 app = FastAPI(
     title="PERCI TC PRO AI",
@@ -25,7 +28,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# --- CONFIGURACIÓN DE SEGURIDAD (CORS) CORREGIDA PARA RENDER ---
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware, 
@@ -40,7 +42,6 @@ app.include_router(process.router,   prefix="/process",  tags=["Process"])
 app.include_router(query.router,     prefix="/query",    tags=["Query / Chat"])
 app.include_router(generate.router,  prefix="/generate", tags=["Generate"])
 app.include_router(ai_config.router, prefix="/ai",       tags=["AI Config"])
-
 
 @app.get("/")
 async def root():
