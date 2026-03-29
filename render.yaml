@@ -2,6 +2,7 @@ services:
   - type: web
     name: perci-tc-pro-backend
     runtime: docker
+    plan: free
     rootDir: backend
     dockerfilePath: ./Dockerfile
     envVars:
@@ -25,9 +26,11 @@ services:
         value: llama-3.1-70b-versatile
       - key: CLAUDE_MODEL
         value: claude-3-5-sonnet-20241022
+
   - type: web
     name: perci-tc-pro-frontend
     runtime: docker
+    plan: free
     rootDir: frontend
     dockerfilePath: ./Dockerfile
     envVars:
