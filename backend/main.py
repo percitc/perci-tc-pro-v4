@@ -11,7 +11,7 @@ from services.rag_service import rag_service
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-# --- FIX PARA RENDER GRATIS: CREAR CARPETAS EN /TMP ---
+# --- RENDER FREE FIX: CREATE TEMP DIRECTORIES ---
 os.makedirs("/tmp/uploads", exist_ok=True)
 os.makedirs("/tmp/vectorstore", exist_ok=True)
 
@@ -21,6 +21,7 @@ async def lifespan(app: FastAPI):
     yield
     await rag_service.cleanup()
 
+
 app = FastAPI(
     title="PERCI TC PRO AI",
     description="Plataforma SaaS educativa — Multi-Provider IA (OpenAI | Gemini | Groq | Claude | Ollama)",
@@ -28,6 +29,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# --- CORS CONFIGURATION (FIXED FOR RENDER) ---
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware, 
@@ -42,6 +44,7 @@ app.include_router(process.router,   prefix="/process",  tags=["Process"])
 app.include_router(query.router,     prefix="/query",    tags=["Query / Chat"])
 app.include_router(generate.router,  prefix="/generate", tags=["Generate"])
 app.include_router(ai_config.router, prefix="/ai",       tags=["AI Config"])
+
 
 @app.get("/")
 async def root():
