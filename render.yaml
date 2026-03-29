@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: perci-tc-pro-backend
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CLAUDE_API_KEY
+        sync: false
+      - key: OLLAMA_URL
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: OPENAI_EMBEDDING_MODEL
+        value: text-embedding-3-large
+      - key: GEMINI_MODEL
+        value: gemini-1.5-pro
+      - key: GROQ_MODEL
+        value: llama-3.1-70b-versatile
+      - key: CLAUDE_MODEL
+        value: claude-3-5-sonnet-20241022
+      - key: VECTOR_STORE_PATH
+        value: /opt/render/project/src/data/vectorstore
+      - key: UPLOAD_DIR
+        value: /opt/render/project/src/data/uploads
+    disk:
+      name: perci-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 10
+
+  - type: web
+    name: perci-tc-pro-frontend
+    runtime: docker
+    rootDir: frontend
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
