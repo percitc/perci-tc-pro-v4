@@ -25,9 +25,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# --- CONFIGURACIÓN DE SEGURIDAD (CORS) CORREGIDA PARA RENDER ---
 app.add_middleware(GZipMiddleware, minimum_size=1000)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-                   allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=["*"], 
+    allow_credentials=False, 
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
 
 app.include_router(upload.router,    prefix="/upload",   tags=["Upload"])
 app.include_router(process.router,   prefix="/process",  tags=["Process"])
@@ -47,4 +53,4 @@ async def health():
     return {"status": "ok"}
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=10000, reload=False)
