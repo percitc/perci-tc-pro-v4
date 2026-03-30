@@ -4,7 +4,7 @@ PERCI TC PRO AI — AI Router v4
 - Seleccion inteligente por tarea
 - Fallback automatico en cascada
 - NUNCA se rompe: funciona con 1 o mas proveedores
-- Embeddings: OpenAI > Gemini > Ollama > local (sentence-transformers)
+- Embeddings: OpenAI > Gemini > Ollama
 
 Routing por tarea:
   CHAT_RAPIDO   -> Groq   > OpenAI > Claude > Gemini > Ollama
@@ -13,7 +13,7 @@ Routing por tarea:
   ALTA_CALIDAD  -> OpenAI > Claude > Gemini > Groq   > Ollama
   GENERACION    -> OpenAI > Claude > Gemini > Groq   > Ollama
   OFFLINE       -> Ollama > Groq   > OpenAI > Claude > Gemini
-  EMBEDDINGS    -> OpenAI > Gemini > Ollama > LOCAL
+  EMBEDDINGS    -> OpenAI > Gemini > Ollama
   TRANSCRIPCION -> OpenAI > Groq
 """
 from __future__ import annotations
@@ -49,23 +49,16 @@ TASK_ROUTING: dict[TaskType, list[str]] = {
     TaskType.TRANSCRIPCION: ["openai", "groq"],
 }
 
-# Timeout por proveedor (segundos)
 TIMEOUTS = {"groq": 30, "openai": 90, "gemini": 90, "claude": 90, "ollama": 180}
 
 
 class AIRouter:
     def __init__(self):
-        self._providers:  dict[str, BaseProvider] = {}
-        self._manual:     str | None              = os.getenv("AI_PROVIDER")
-        self._initialized: bool                   = False
-
-    # ── Deteccion automatica ───────────────────────────────────────────────────
+        self._providers:   dict[str, BaseProvider] = {}
+        self._manual:      str | None              = os.getenv("AI_PROVIDER")
+        self._initialized: bool                    = False
 
     def _detect_and_init(self):
-        """
-        Inicializa SOLO los proveedores con API key configurada.
-        Nunca lanza excepcion si uno falla — lo omite con warning.
-        """
         from .openai_provider import OpenAIProvider
         from .gemini_provider import GeminiProvider
         from .groq_provider   import GroqProvider
@@ -101,8 +94,6 @@ class AIRouter:
         if not self._initialized:
             self._detect_and_init()
 
-    # ── Seleccion con fallback ─────────────────────────────────────────────────
-
     def _ordered(self, task: TaskType) -> list[BaseProvider]:
         preference = TASK_ROUTING.get(task, list(self._providers.keys()))
         if self._manual and self._manual in self._providers:
@@ -110,16 +101,11 @@ class AIRouter:
             preference = [self._manual] + rest
         return [self._providers[p] for p in preference if p in self._providers]
 
-    async def _try_providers(
-        self,
-        providers: list[BaseProvider],
-        coro_factory,           # fn(provider) -> coroutine
-        task_name: str,
-    ):
+    async def _try_providers(self, providers, coro_factory, task_name):
         if not providers:
             raise RuntimeError(
                 "No hay proveedores de IA disponibles. "
-                "Configura al menos una API key en .env (OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, CLAUDE_API_KEY, OLLAMA_URL)"
+                "Configura al menos una API key en .env"
             )
         last_err = None
         for provider in providers:
@@ -135,8 +121,6 @@ class AIRouter:
                 logger.warning(f"[Router] {provider.name}: {type(e).__name__}: {e}, siguiente...")
                 last_err = e
         raise RuntimeError(f"Todos los proveedores fallaron en '{task_name}'. Ultimo error: {last_err}")
-
-    # ── API publica ────────────────────────────────────────────────────────────
 
     async def generate_response(
         self,
@@ -156,34 +140,31 @@ class AIRouter:
         )
 
     async def generate_embeddings(self, texts: list[str]) -> EmbeddingResponse:
-        """
-        Embeddings con fallback completo:
-        OpenAI -> Gemini -> Ollama -> sentence-transformers (local, sin API)
-        Siempre usa el mismo proveedor dentro de una sesion para consistencia RAG.
-        """
+        """Embeddings: OpenAI -> Gemini -> Ollama. Sin fallback local."""
         self._ensure()
-        emb_providers = [self._providers[p] for p in TASK_ROUTING[TaskType.EMBEDDINGS]
-                         if p in self._providers and self._providers[p].supports_embeddings]
-
-        if emb_providers:
-            try:
-                return await self._try_providers(
-                    emb_providers,
-                    lambda p: p.generate_embeddings(texts),
-                    "generate_embeddings",
-                )
-            except Exception as e:
-                logger.warning(f"[Router] Todos los embeddings API fallaron: {e}. Usando local...")
-
-        # Fallback final: embeddings locales (sin internet, sin API key)
-        logger.info("[Router] Usando embeddings locales (sentence-transformers)")
-        from .local_embeddings import local_embed
-        return await local_embed(texts)
+        emb_providers = [
+            self._providers[p]
+            for p in TASK_ROUTING[TaskType.EMBEDDINGS]
+            if p in self._providers and self._providers[p].supports_embeddings
+        ]
+        if not emb_providers:
+            raise RuntimeError(
+                "No hay proveedores de embeddings disponibles. "
+                "Configura OPENAI_API_KEY o GEMINI_API_KEY."
+            )
+        return await self._try_providers(
+            emb_providers,
+            lambda p: p.generate_embeddings(texts),
+            "generate_embeddings",
+        )
 
     async def transcribe_audio(self, file_path: str, language: str = "es") -> TranscriptionResponse:
         self._ensure()
-        providers = [self._providers[p] for p in TASK_ROUTING[TaskType.TRANSCRIPCION]
-                     if p in self._providers and self._providers[p].supports_transcription]
+        providers = [
+            self._providers[p]
+            for p in TASK_ROUTING[TaskType.TRANSCRIPCION]
+            if p in self._providers and self._providers[p].supports_transcription
+        ]
         return await self._try_providers(
             providers,
             lambda p: p.transcribe_audio(file_path, language),
@@ -196,8 +177,6 @@ class AIRouter:
             system="Eres un experto en sintesis educativa. Responde en espanol claro y estructurado.",
             task=TaskType.GENERACION,
         )
-
-    # ── Estado y control ───────────────────────────────────────────────────────
 
     def available_providers(self) -> list[str]:
         self._ensure()
@@ -212,7 +191,6 @@ class AIRouter:
         }
 
     def set_provider(self, name: str | None):
-        """Fuerza un proveedor (None = automatico)."""
         self._ensure()
         if name and name not in self._providers:
             raise ValueError(f"Proveedor '{name}' no disponible. Activos: {list(self._providers.keys())}")
@@ -229,12 +207,10 @@ class AIRouter:
         return results
 
     async def tts(self, text: str, voice: str = "onyx") -> bytes:
-        """TTS solo OpenAI. Lanza error si no esta disponible."""
         self._ensure()
         if "openai" not in self._providers:
             raise RuntimeError("TTS requiere OPENAI_API_KEY configurada")
         return await self._providers["openai"].tts(text, voice)
 
 
-# ── Singleton global ───────────────────────────────────────────────────────────
 ai_router = AIRouter()
