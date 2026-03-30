@@ -9,11 +9,11 @@ from services.ai import ai_router, TaskType
 load_dotenv()
 
 VECTOR_STORE_PATH = Path(os.getenv("VECTOR_STORE_PATH", "/tmp/perci_vectorstore"))
-CHUNK_SIZE_MACRO  = int(os.getenv("CHUNK_SIZE_MACRO", 2000))
-CHUNK_SIZE_MICRO  = int(os.getenv("CHUNK_SIZE_MICRO", 700))
-CHUNK_OVERLAP     = int(os.getenv("CHUNK_OVERLAP", 150))
-TOP_K_INITIAL     = int(os.getenv("TOP_K_INITIAL", 20))
-TOP_K_FINAL       = int(os.getenv("TOP_K_FINAL", 6))
+CHUNK_SIZE_MACRO  = int(os.getenv("CHUNK_SIZE_MACRO", 800))
+CHUNK_SIZE_MICRO  = int(os.getenv("CHUNK_SIZE_MICRO", 300))
+CHUNK_OVERLAP     = int(os.getenv("CHUNK_OVERLAP", 50))
+TOP_K_INITIAL     = int(os.getenv("TOP_K_INITIAL", 10))
+TOP_K_FINAL       = int(os.getenv("TOP_K_FINAL", 3))
 
 SYSTEM_PERCI = (
     "Eres PERCI, un asistente educativo de IA experto y amigable. "
