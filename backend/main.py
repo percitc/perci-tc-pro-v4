@@ -14,7 +14,6 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 
-# ── Directorios temporales — nombres EXACTOS que usan las variables de entorno ─
 os.makedirs("/tmp/perci_uploads", exist_ok=True)
 os.makedirs("/tmp/perci_vectorstore", exist_ok=True)
 
@@ -33,8 +32,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── Middlewares ────────────────────────────────────────────────────────────────
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# ── CORS primero — SIEMPRE antes que GZip ─────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,6 +40,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(upload.router,    prefix="/upload",   tags=["Upload"])
