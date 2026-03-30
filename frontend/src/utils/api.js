@@ -1,5 +1,10 @@
 import axios from 'axios'
-const API = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000', timeout: 120000 })
+
+const API = axios.create({ 
+  baseURL: 'https://perci-tc-pro-backend.onrender.com', 
+  timeout: 120000 
+})
+
 export const uploadFile = (file, sessionId, onProgress) => {
   const f = new FormData(); f.append('file', file); if (sessionId) f.append('session_id', sessionId)
   return API.post('/upload/file', f, { headers:{'Content-Type':'multipart/form-data'}, onUploadProgress: e => onProgress && onProgress(Math.round(e.loaded*100/e.total)) }).then(r => r.data)
