@@ -1,20 +1,6 @@
 """
 PERCI TC PRO AI — AI Router v4
-- Deteccion automatica de proveedores via .env
-- Seleccion inteligente por tarea
-- Fallback automatico en cascada
-- NUNCA se rompe: funciona con 1 o mas proveedores
-- Embeddings: OpenAI > Gemini > Ollama
-
-Routing por tarea:
-  CHAT_RAPIDO   -> Groq   > OpenAI > Claude > Gemini > Ollama
-  DOC_LARGO     -> Gemini > Claude > OpenAI > Groq   > Ollama
-  RAZONAMIENTO  -> Claude > OpenAI > Gemini > Groq   > Ollama
-  ALTA_CALIDAD  -> OpenAI > Claude > Gemini > Groq   > Ollama
-  GENERACION    -> OpenAI > Claude > Gemini > Groq   > Ollama
-  OFFLINE       -> Ollama > Groq   > OpenAI > Claude > Gemini
-  EMBEDDINGS    -> OpenAI > Gemini > Ollama
-  TRANSCRIPCION -> OpenAI > Groq
+Embeddings: OpenAI > Gemini > Ollama > LOCAL (numpy, sin API)
 """
 from __future__ import annotations
 import os
@@ -84,7 +70,7 @@ class AIRouter:
                 logger.warning(f"[Router] {name}: error al inicializar — {e}")
 
         if not self._providers:
-            logger.error("[Router] SIN PROVEEDORES. Agrega al menos una API key en .env")
+            logger.error("[Router] SIN PROVEEDORES")
         else:
             logger.info(f"[Router] Proveedores activos: {list(self._providers.keys())}")
 
@@ -103,10 +89,7 @@ class AIRouter:
 
     async def _try_providers(self, providers, coro_factory, task_name):
         if not providers:
-            raise RuntimeError(
-                "No hay proveedores de IA disponibles. "
-                "Configura al menos una API key en .env"
-            )
+            raise RuntimeError("No hay proveedores de IA disponibles.")
         last_err = None
         for provider in providers:
             timeout = TIMEOUTS.get(provider.name, 60)
@@ -115,12 +98,12 @@ class AIRouter:
                 result = await asyncio.wait_for(coro_factory(provider), timeout=timeout)
                 return result
             except asyncio.TimeoutError:
-                logger.warning(f"[Router] {provider.name}: timeout ({timeout}s), siguiente...")
+                logger.warning(f"[Router] {provider.name}: timeout, siguiente...")
                 last_err = TimeoutError(f"{provider.name} timeout")
             except Exception as e:
                 logger.warning(f"[Router] {provider.name}: {type(e).__name__}: {e}, siguiente...")
                 last_err = e
-        raise RuntimeError(f"Todos los proveedores fallaron en '{task_name}'. Ultimo error: {last_err}")
+        raise RuntimeError(f"Todos los proveedores fallaron en '{task_name}'. Error: {last_err}")
 
     async def generate_response(
         self,
@@ -140,23 +123,31 @@ class AIRouter:
         )
 
     async def generate_embeddings(self, texts: list[str]) -> EmbeddingResponse:
-        """Embeddings: OpenAI -> Gemini -> Ollama. Sin fallback local."""
+        """
+        Embeddings con fallback completo:
+        OpenAI -> Gemini -> Ollama -> LOCAL (numpy, sin API, siempre funciona)
+        """
         self._ensure()
         emb_providers = [
             self._providers[p]
             for p in TASK_ROUTING[TaskType.EMBEDDINGS]
             if p in self._providers and self._providers[p].supports_embeddings
         ]
-        if not emb_providers:
-            raise RuntimeError(
-                "No hay proveedores de embeddings disponibles. "
-                "Configura OPENAI_API_KEY o GEMINI_API_KEY."
-            )
-        return await self._try_providers(
-            emb_providers,
-            lambda p: p.generate_embeddings(texts),
-            "generate_embeddings",
-        )
+
+        if emb_providers:
+            try:
+                return await self._try_providers(
+                    emb_providers,
+                    lambda p: p.generate_embeddings(texts),
+                    "generate_embeddings",
+                )
+            except Exception as e:
+                logger.warning(f"[Router] APIs de embeddings fallaron: {e}. Usando embeddings locales...")
+
+        # Fallback local — numpy, sin API, siempre disponible
+        logger.info("[Router] Usando embeddings locales (numpy hash-based)")
+        from .local_embeddings import local_embed
+        return await local_embed(texts)
 
     async def transcribe_audio(self, file_path: str, language: str = "es") -> TranscriptionResponse:
         self._ensure()
@@ -174,7 +165,7 @@ class AIRouter:
     async def generate_summary(self, text: str) -> AIResponse:
         return await self.generate_response(
             prompt=f"Genera un resumen ejecutivo completo en espanol:\n\n{text[:8000]}",
-            system="Eres un experto en sintesis educativa. Responde en espanol claro y estructurado.",
+            system="Eres un experto en sintesis educativa. Responde en espanol claro.",
             task=TaskType.GENERACION,
         )
 
