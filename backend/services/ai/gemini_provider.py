@@ -14,7 +14,7 @@ class GeminiProvider(BaseProvider):
     def __init__(self):
         self.api_key     = os.getenv("GEMINI_API_KEY", "")
         self.model       = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
-        self.embed_model = "models/text-embedding-004"
+        self.embed_model = os.getenv("GEMINI_EMBEDDING_MODEL", "models/embedding-001")
 
     async def generate_response(self, prompt, context="", system="", history=None, options=None) -> AIResponse:
         o = options or {}
@@ -26,13 +26,18 @@ class GeminiProvider(BaseProvider):
         contents.append({"role": "user", "parts": [{"text": prompt}]})
         body: dict = {
             "contents": contents,
-            "generationConfig": {"maxOutputTokens": o.get("max_tokens", 2048), "temperature": o.get("temperature", 0.4)},
+            "generationConfig": {
+                "maxOutputTokens": o.get("max_tokens", 2048),
+                "temperature": o.get("temperature", 0.4)
+            },
         }
         if sys_text:
             body["systemInstruction"] = {"parts": [{"text": sys_text}]}
         async with httpx.AsyncClient(timeout=90) as h:
-            r = await h.post(f"{GEMINI_BASE}/models/{o.get('model',self.model)}:generateContent?key={self.api_key}",
-                             json=body, headers={"Content-Type": "application/json"})
+            r = await h.post(
+                f"{GEMINI_BASE}/models/{o.get('model', self.model)}:generateContent?key={self.api_key}",
+                json=body, headers={"Content-Type": "application/json"}
+            )
             r.raise_for_status()
             d = r.json()
         return AIResponse(
@@ -45,10 +50,16 @@ class GeminiProvider(BaseProvider):
         embs = []
         async with httpx.AsyncClient(timeout=60) as h:
             for i in range(0, len(texts), 100):
-                body = {"requests": [{"model": self.embed_model, "content": {"parts": [{"text": t}]}}
-                                     for t in texts[i:i+100]]}
-                r = await h.post(f"{GEMINI_BASE}/{self.embed_model}:batchEmbedContents?key={self.api_key}",
-                                 json=body, headers={"Content-Type": "application/json"})
+                body = {
+                    "requests": [
+                        {"model": self.embed_model, "content": {"parts": [{"text": t}]}}
+                        for t in texts[i:i+100]
+                    ]
+                }
+                r = await h.post(
+                    f"{GEMINI_BASE}/{self.embed_model}:batchEmbedContents?key={self.api_key}",
+                    json=body, headers={"Content-Type": "application/json"}
+                )
                 r.raise_for_status()
                 embs.extend([x["values"] for x in r.json().get("embeddings", [])])
         return EmbeddingResponse(embeddings=embs, provider=self.name, model=self.embed_model)
