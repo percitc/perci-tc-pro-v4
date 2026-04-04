@@ -48,3 +48,62 @@
 .mod-temas li{font-size:11px;color:var(--text-secondary)}
 .raw{font-size:11px;font-family:var(--font-mono);background:var(--bg-elevated);padding:14px;border-radius:var(--radius-md);overflow:auto;max-height:380px;color:var(--text-secondary)}
 @media(max-width:768px){.gen-grid{grid-template-columns:repeat(2,1fr)}.cards-grid{grid-template-columns:1fr}.slides-grid{grid-template-columns:repeat(2,1fr)}.info-secs{grid-template-columns:1fr}}
+/* Agregar al final de GeneratorPanel.css */
+
+/* ── Barra de exportacion ────────────────────────────────────────────────── */
+.export-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.export-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+.btn-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all .2s;
+  font-family: var(--font-body);
+}
+.btn-export.pdf {
+  background: rgba(239,68,68,0.1);
+  border-color: rgba(239,68,68,0.4);
+  color: #ef4444;
+}
+.btn-export.pdf:hover {
+  background: rgba(239,68,68,0.2);
+}
+.btn-export.docx {
+  background: rgba(37,99,235,0.1);
+  border-color: rgba(37,99,235,0.4);
+  color: #2563eb;
+}
+.btn-export.docx:hover {
+  background: rgba(37,99,235,0.2);
+}
+.btn-export.json {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+.btn-export.json:hover {
+  border-color: var(--border-accent);
+  color: var(--text-primary);
+}
+.btn-export:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
