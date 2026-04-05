@@ -21,6 +21,9 @@ openpyxl==3.1.4
 pandas==2.2.2
 Pillow==10.4.0
 
+# Export PDF
+reportlab==4.2.2
+
 # Audio / Video
 openai-whisper
 ffmpeg-python==0.2.0
