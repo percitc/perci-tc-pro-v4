@@ -1,4 +1,4 @@
-"""PERCI TC PRO AI — Generadores Educativos (Multi-Provider)"""
+"""PERCI TC PRO AI — Generadores Educativos (Multi-Provider + ElevenLabs TTS)"""
 from __future__ import annotations
 import os, json, re
 from services.ai import ai_router, TaskType
@@ -10,6 +10,15 @@ TTS_VOICE_PROFESOR   = os.getenv("TTS_VOICE_PROFESOR",   "onyx")
 TTS_VOICE_ASISTENTE  = os.getenv("TTS_VOICE_ASISTENTE",  "nova")
 TTS_VOICE_ESTUDIANTE = os.getenv("TTS_VOICE_ESTUDIANTE", "shimmer")
 
+ELEVENLABS_API_KEY   = os.getenv("ELEVENLABS_API_KEY", "")
+
+# Voces de ElevenLabs en español (IDs predefinidos)
+ELEVENLABS_VOICES = {
+    "profesor":   os.getenv("ELEVENLABS_VOICE_PROFESOR",   "pNInz6obpgDQGcFmaJgB"),  # Adam
+    "asistente":  os.getenv("ELEVENLABS_VOICE_ASISTENTE",  "EXAVITQu4vr4xnSDxMaL"),  # Bella
+    "estudiante": os.getenv("ELEVENLABS_VOICE_ESTUDIANTE", "21m00Tcm4TlvDq8ikWAM"),  # Rachel
+}
+
 SYS = ("Eres PERCI, experto en educacion y diseno instruccional. "
        "Respondes SIEMPRE en espanol claro, didactico y profesional. "
        "Generas contenido estructurado, profundo y de alta calidad educativa. "
@@ -17,20 +26,18 @@ SYS = ("Eres PERCI, experto en educacion y diseno instruccional. "
        "sin bloques de codigo, sin explicaciones.")
 
 
+# ── Helpers JSON ───────────────────────────────────────────────────────────────
+
 def _extract_json(text: str) -> str:
-    """Extrae JSON limpio de una respuesta que puede tener markdown."""
-    # Quitar bloques ```json ... ```
     text = re.sub(r'```json\s*', '', text)
     text = re.sub(r'```\s*', '', text)
     text = text.strip()
-    # Buscar el primer { o [ y el ultimo } o ]
     start = min(
         (text.find('{') if text.find('{') != -1 else len(text)),
         (text.find('[') if text.find('[') != -1 else len(text))
     )
     if start == len(text):
         return text
-    # Encontrar el cierre correspondiente
     open_char  = text[start]
     close_char = '}' if open_char == '{' else ']'
     end = text.rfind(close_char)
@@ -40,19 +47,16 @@ def _extract_json(text: str) -> str:
 
 
 def _safe_json(text: str) -> dict:
-    """Parsea JSON de forma segura con fallback."""
     try:
         return json.loads(text)
     except Exception:
         try:
-            clean = _extract_json(text)
-            return json.loads(clean)
+            return json.loads(_extract_json(text))
         except Exception:
             return {"error": "No se pudo parsear la respuesta", "raw": text[:500]}
 
 
 async def _llm(system: str, user: str, max_tokens: int = 4000) -> str:
-    """Llama al LLM sin json_mode (compatible con Groq y OpenAI)."""
     o = {"max_tokens": max_tokens, "temperature": 0.3}
     r = await ai_router.generate_response(
         prompt=user, system=system,
@@ -61,99 +65,131 @@ async def _llm(system: str, user: str, max_tokens: int = 4000) -> str:
     return r.content
 
 
+# ── Generadores ────────────────────────────────────────────────────────────────
+
 async def generate_summary(context: str, title: str = "") -> dict:
-    t = await _llm(
-        SYS,
+    t = await _llm(SYS,
         f"Genera un resumen ejecutivo completo{f' de: {title}' if title else ''}.\n"
         f"Estructura: introduccion, ideas principales (5-10), conceptos clave, conclusiones, aplicaciones practicas.\n\n"
-        f"CONTENIDO:\n{context}"
-    )
+        f"CONTENIDO:\n{context}")
     return {"type": "summary", "content": t}
 
 
 async def generate_flashcards(context: str, num: int = 20) -> dict:
-    r = await _llm(
-        SYS,
-        f'Crea {num} flashcards sobre el contenido. '
-        f'Responde UNICAMENTE con este JSON valido, sin texto adicional:\n'
-        f'{{"tarjetas":[{{"id":1,"pregunta":"pregunta aqui","respuesta":"respuesta aqui","categoria":"tema","dificultad":"basico"}}]}}\n\n'
-        f'CONTENIDO:\n{context[:6000]}'
-    )
+    r = await _llm(SYS,
+        f'Crea {num} flashcards. JSON valido sin texto extra:\n'
+        f'{{"tarjetas":[{{"id":1,"pregunta":"...","respuesta":"...","categoria":"tema","dificultad":"basico"}}]}}\n\n'
+        f'CONTENIDO:\n{context[:6000]}')
     return {"type": "flashcards", "content": _safe_json(r)}
 
 
 async def generate_quiz(context: str, num: int = 10) -> dict:
-    r = await _llm(
-        SYS,
-        f'Crea {num} preguntas de opcion multiple. '
-        f'Responde UNICAMENTE con este JSON valido, sin texto adicional:\n'
-        f'{{"cuestionario":[{{"id":1,"pregunta":"pregunta","opciones":["A) opcion1","B) opcion2","C) opcion3","D) opcion4"],"respuesta_correcta":"A","explicacion":"explicacion","dificultad":"basico"}}]}}\n\n'
-        f'CONTENIDO:\n{context[:6000]}'
-    )
+    r = await _llm(SYS,
+        f'Crea {num} preguntas opcion multiple. JSON valido sin texto extra:\n'
+        f'{{"cuestionario":[{{"id":1,"pregunta":"...","opciones":["A) ...","B) ...","C) ...","D) ..."],"respuesta_correcta":"A","explicacion":"...","dificultad":"basico"}}]}}\n\n'
+        f'CONTENIDO:\n{context[:6000]}')
     return {"type": "quiz", "content": _safe_json(r)}
 
 
 async def generate_slides(context: str, num_slides: int = 10) -> dict:
-    r = await _llm(
-        SYS,
-        f'Crea {num_slides} diapositivas para presentacion. '
-        f'Responde UNICAMENTE con este JSON valido, sin texto adicional:\n'
-        f'{{"titulo_presentacion":"titulo","slides":[{{"numero":1,"tipo":"portada","titulo":"titulo","subtitulo":"subtitulo","puntos":["punto1","punto2"],"nota_orador":"nota","emoji":"🎯"}}]}}\n\n'
-        f'CONTENIDO:\n{context[:6000]}'
-    )
+    r = await _llm(SYS,
+        f'Crea {num_slides} diapositivas. JSON valido sin texto extra:\n'
+        f'{{"titulo_presentacion":"titulo","slides":[{{"numero":1,"tipo":"portada","titulo":"...","subtitulo":"...","puntos":["..."],"nota_orador":"...","emoji":"🎯"}}]}}\n\n'
+        f'CONTENIDO:\n{context[:6000]}')
     return {"type": "slides", "content": _safe_json(r)}
 
 
 async def generate_infographic(context: str) -> dict:
-    r = await _llm(
-        SYS,
-        f'Crea una infografia educativa. '
-        f'Responde UNICAMENTE con este JSON valido, sin texto adicional:\n'
-        f'{{"titulo":"titulo","subtitulo":"subtitulo","color_principal":"#3B82F6","secciones":[{{"icono":"📚","titulo":"seccion","descripcion":"descripcion","datos":["dato1","dato2"]}}],"datos_clave":[{{"numero":"90%","descripcion":"descripcion"}}],"conclusion":"conclusion"}}\n\n'
-        f'CONTENIDO:\n{context[:5000]}'
-    )
+    r = await _llm(SYS,
+        f'Crea infografia educativa. JSON valido sin texto extra:\n'
+        f'{{"titulo":"...","subtitulo":"...","color_principal":"#3B82F6","secciones":[{{"icono":"📚","titulo":"...","descripcion":"...","datos":["..."]}}],"datos_clave":[{{"numero":"90%","descripcion":"..."}}],"conclusion":"..."}}\n\n'
+        f'CONTENIDO:\n{context[:5000]}')
     return {"type": "infographic", "content": _safe_json(r)}
 
 
 async def generate_course(context: str, title: str = "") -> dict:
-    r = await _llm(
-        SYS,
-        f'Crea un curso educativo completo. '
-        f'Responde UNICAMENTE con este JSON valido, sin texto adicional:\n'
-        f'{{"titulo_curso":"titulo","descripcion":"descripcion","duracion_estimada":"4 horas","nivel":"intermedio","objetivos":["objetivo1","objetivo2"],"modulos":[{{"numero":1,"titulo":"modulo","descripcion":"descripcion","temas":[{{"titulo":"tema","contenido":"contenido","actividad":"actividad"}}],"evaluacion":"evaluacion"}}],"evaluacion_final":"evaluacion"}}\n\n'
-        f'CONTENIDO:\n{context[:8000]}',
-        max_tokens=5000
-    )
+    r = await _llm(SYS,
+        f'Crea curso educativo completo. JSON valido sin texto extra:\n'
+        f'{{"titulo_curso":"...","descripcion":"...","duracion_estimada":"4 horas","nivel":"intermedio","objetivos":["..."],"modulos":[{{"numero":1,"titulo":"...","descripcion":"...","temas":[{{"titulo":"...","contenido":"...","actividad":"..."}}],"evaluacion":"..."}}],"evaluacion_final":"..."}}\n\n'
+        f'CONTENIDO:\n{context[:8000]}', max_tokens=5000)
     return {"type": "course", "content": _safe_json(r)}
 
 
 async def generate_audio_script(context: str) -> dict:
-    t = await _llm(
-        SYS,
-        f"Escribe un guion de podcast educativo de 5-8 minutos con 2 voces.\n"
-        f"Formato EXACTO (una linea por turno):\n"
-        f"[PROFESOR]: texto del profesor aqui\n"
-        f"[ASISTENTE]: texto del asistente aqui\n\n"
-        f"Natural, dinamico, en espanol. Minimo 10 intercambios.\n\n"
-        f"CONTENIDO:\n{context[:6000]}",
-        max_tokens=3000
-    )
+    t = await _llm(SYS,
+        f"Guion podcast educativo 5-8 min con 2 voces. Formato EXACTO:\n"
+        f"[PROFESOR]: texto\n[ASISTENTE]: texto\n\n"
+        f"Natural, dinamico, espanol. Minimo 10 intercambios.\n\nCONTENIDO:\n{context[:6000]}",
+        max_tokens=3000)
     return {"type": "audio_script", "content": t}
 
 
+# ── TTS — ElevenLabs (principal) + OpenAI (fallback) ──────────────────────────
+
+async def _tts_elevenlabs(text: str, voice_id: str) -> bytes:
+    """Genera audio con ElevenLabs."""
+    import httpx
+    url  = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    body = {
+        "text": text,
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+    }
+    headers = {
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json",
+        "Accept": "audio/mpeg",
+    }
+    async with httpx.AsyncClient(timeout=60) as h:
+        r = await h.post(url, json=body, headers=headers)
+        r.raise_for_status()
+        return r.content
+
+
 async def tts(text: str, voice: str = TTS_VOICE_PROFESOR) -> bytes:
+    """
+    TTS con prioridad:
+    1. ElevenLabs (voces naturales en español)
+    2. OpenAI TTS (fallback si no hay ElevenLabs)
+    """
+    # Mapear nombre de voz a ID de ElevenLabs
+    voice_map = {
+        TTS_VOICE_PROFESOR:   ELEVENLABS_VOICES["profesor"],
+        TTS_VOICE_ASISTENTE:  ELEVENLABS_VOICES["asistente"],
+        TTS_VOICE_ESTUDIANTE: ELEVENLABS_VOICES["estudiante"],
+        "onyx":    ELEVENLABS_VOICES["profesor"],
+        "nova":    ELEVENLABS_VOICES["asistente"],
+        "shimmer": ELEVENLABS_VOICES["estudiante"],
+    }
+
+    # Intentar ElevenLabs primero
+    if ELEVENLABS_API_KEY:
+        try:
+            voice_id = voice_map.get(voice, ELEVENLABS_VOICES["profesor"])
+            return await _tts_elevenlabs(text, voice_id)
+        except Exception as e:
+            import logging
+            logging.getLogger("perci.tts").warning(f"ElevenLabs fallo: {e}. Usando OpenAI...")
+
+    # Fallback: OpenAI TTS
     return await ai_router.tts(text, voice)
 
 
 async def podcast_audio(script: str) -> bytes:
+    """Genera audio de podcast con multiples voces."""
     parts = []
     for line in script.split("\n"):
         line = line.strip()
-        if   line.startswith("[PROFESOR]:"):   parts.append(await tts(line[11:].strip(), TTS_VOICE_PROFESOR))
-        elif line.startswith("[ASISTENTE]:"):  parts.append(await tts(line[12:].strip(), TTS_VOICE_ASISTENTE))
-        elif line.startswith("[ESTUDIANTE]:"): parts.append(await tts(line[13:].strip(), TTS_VOICE_ESTUDIANTE))
+        if   line.startswith("[PROFESOR]:"):
+            parts.append(await tts(line[11:].strip(), TTS_VOICE_PROFESOR))
+        elif line.startswith("[ASISTENTE]:"):
+            parts.append(await tts(line[12:].strip(), TTS_VOICE_ASISTENTE))
+        elif line.startswith("[ESTUDIANTE]:"):
+            parts.append(await tts(line[13:].strip(), TTS_VOICE_ESTUDIANTE))
     return b"".join(parts)
 
+
+# ── Dispatcher ─────────────────────────────────────────────────────────────────
 
 GENERATORS = {
     "summary":      generate_summary,
