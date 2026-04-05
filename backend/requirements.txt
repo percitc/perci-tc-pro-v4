@@ -35,7 +35,6 @@ pytesseract==0.3.10
 youtube-transcript-api==0.6.2
 
 # Audio TTS
-elevenlabs==1.9.0
 
 # Utils
 aiofiles==23.2.1
