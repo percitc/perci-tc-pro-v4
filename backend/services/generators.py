@@ -14,9 +14,9 @@ ELEVENLABS_API_KEY   = os.getenv("ELEVENLABS_API_KEY", "")
 
 # Voces de ElevenLabs en español (IDs predefinidos)
 ELEVENLABS_VOICES = {
-    "profesor":   os.getenv("ELEVENLABS_VOICE_PROFESOR",   "pNInz6obpgDQGcFmaJgB"),  # Adam
-    "asistente":  os.getenv("ELEVENLABS_VOICE_ASISTENTE",  "EXAVITQu4vr4xnSDxMaL"),  # Bella
-    "estudiante": os.getenv("ELEVENLABS_VOICE_ESTUDIANTE", "21m00Tcm4TlvDq8ikWAM"),  # Rachel
+    "profesor":   os.getenv("ELEVENLABS_VOICE_PROFESOR",   "21m00Tcm4TlvDq8ikWAM",  # Rachel
+    "asistente":  os.getenv("ELEVENLABS_VOICE_ASISTENTE",  "AZnzlk1XvdvUeBnXmlld",  # Domi
+    "estudiante": os.getenv("ELEVENLABS_VOICE_ESTUDIANTE", "EXAVITQu4vr4xnSDxMaL",  # Bella
 }
 
 SYS = ("Eres PERCI, experto en educacion y diseno instruccional. "
