@@ -14,9 +14,9 @@ ELEVENLABS_API_KEY   = os.getenv("ELEVENLABS_API_KEY", "")
 
 # Voces de ElevenLabs en español (IDs predefinidos)
 ELEVENLABS_VOICES = {
-    "profesor":   os.getenv("ELEVENLABS_VOICE_PROFESOR",   "21m00Tcm4TlvDq8ikWAM",  # Rachel
-    "asistente":  os.getenv("ELEVENLABS_VOICE_ASISTENTE",  "AZnzlk1XvdvUeBnXmlld",  # Domi
-    "estudiante": os.getenv("ELEVENLABS_VOICE_ESTUDIANTE", "EXAVITQu4vr4xnSDxMaL",  # Bella
+    "profesor":   os.getenv("ELEVENLABS_VOICE_PROFESOR",   "21m00Tcm4TlvDq8ikWAM"),  # Rachel
+    "asistente":  os.getenv("ELEVENLABS_VOICE_ASISTENTE",  "AZnzlk1XvdvUeBnXmlld"),  # Domi
+    "estudiante": os.getenv("ELEVENLABS_VOICE_ESTUDIANTE", "EXAVITQu4vr4xnSDxMaL"),  # Bella
 }
 
 SYS = ("Eres PERCI, experto en educacion y diseno instruccional. "
@@ -147,34 +147,14 @@ async def _tts_elevenlabs(text: str, voice_id: str) -> bytes:
 
 
 async def tts(text: str, voice: str = TTS_VOICE_PROFESOR) -> bytes:
-    import httpx, logging
-    log = logging.getLogger("perci.tts")
-    key = os.getenv("ELEVENLABS_API_KEY", "")
-    voice_ids = {
-        "onyx":    "pNInz6obpgDQGcFmaJgB",
-        "nova":    "EXAVITQu4vr4xnSDxMaL",
-        "shimmer": "21m00Tcm4TlvDq8ikWAM",
-    }
-    if key:
-        try:
-            vid = voice_ids.get(voice, voice_ids["onyx"])
-            async with httpx.AsyncClient(timeout=60) as h:
-                r = await h.post(
-                    f"https://api.elevenlabs.io/v1/text-to-speech/{vid}",
-                    json={"text": text, "model_id": "eleven_multilingual_v2",
-                          "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}},
-                    headers={"xi-api-key": key, "Content-Type": "application/json", "Accept": "audio/mpeg"},
-                )
-                r.raise_for_status()
-                return r.content
-        except Exception as e:
-            log.warning(f"ElevenLabs fallo: {e}")
-    raise RuntimeError("Audio no disponible. Verifica ELEVENLABS_API_KEY en Render.")
     """
     TTS con prioridad:
     1. ElevenLabs (voces naturales en español)
     2. OpenAI TTS (fallback si no hay ElevenLabs)
     """
+    import logging
+    log = logging.getLogger("perci.tts")
+    
     # Mapear nombre de voz a ID de ElevenLabs
     voice_map = {
         TTS_VOICE_PROFESOR:   ELEVENLABS_VOICES["profesor"],
@@ -191,11 +171,14 @@ async def tts(text: str, voice: str = TTS_VOICE_PROFESOR) -> bytes:
             voice_id = voice_map.get(voice, ELEVENLABS_VOICES["profesor"])
             return await _tts_elevenlabs(text, voice_id)
         except Exception as e:
-            import logging
-            logging.getLogger("perci.tts").warning(f"ElevenLabs fallo: {e}. Usando OpenAI...")
+            log.warning(f"ElevenLabs fallo: {e}. Usando OpenAI fallback...")
 
     # Fallback: OpenAI TTS
-    return await ai_router.tts(text, voice)
+    try:
+        return await ai_router.tts(text, voice)
+    except Exception as e:
+        log.error(f"OpenAI TTS también falló: {e}")
+        raise RuntimeError("Audio no disponible. Verifica ELEVENLABS_API_KEY o OPENAI_API_KEY en Render.")
 
 
 async def podcast_audio(script: str) -> bytes:
