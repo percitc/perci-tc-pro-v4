@@ -1,23 +1,10 @@
-"""PERCI TC PRO AI — Generadores Educativos (Multi-Provider + ElevenLabs TTS)"""
+"""PERCI TC PRO AI — Generadores Educativos con gTTS"""
 from __future__ import annotations
 import os, json, re
 from services.ai import ai_router, TaskType
 from dotenv import load_dotenv
 
 load_dotenv()
-
-TTS_VOICE_PROFESOR   = os.getenv("TTS_VOICE_PROFESOR",   "onyx")
-TTS_VOICE_ASISTENTE  = os.getenv("TTS_VOICE_ASISTENTE",  "nova")
-TTS_VOICE_ESTUDIANTE = os.getenv("TTS_VOICE_ESTUDIANTE", "shimmer")
-
-ELEVENLABS_API_KEY   = os.getenv("ELEVENLABS_API_KEY", "")
-
-# Voces de ElevenLabs en español (IDs predefinidos)
-ELEVENLABS_VOICES = {
-    "profesor":   os.getenv("ELEVENLABS_VOICE_PROFESOR",   "21m00Tcm4TlvDq8ikWAM"),  # Rachel
-    "asistente":  os.getenv("ELEVENLABS_VOICE_ASISTENTE",  "AZnzlk1XvdvUeBnXmlld"),  # Domi
-    "estudiante": os.getenv("ELEVENLABS_VOICE_ESTUDIANTE", "EXAVITQu4vr4xnSDxMaL"),  # Bella
-}
 
 SYS = ("Eres PERCI, experto en educacion y diseno instruccional. "
        "Respondes SIEMPRE en espanol claro, didactico y profesional. "
@@ -116,83 +103,93 @@ async def generate_course(context: str, title: str = "") -> dict:
 
 
 async def generate_audio_script(context: str) -> dict:
-    t = await _llm(SYS,
-        f"Guion podcast educativo 5-8 min con 2 voces. Formato EXACTO:\n"
-        f"[PROFESOR]: texto\n[ASISTENTE]: texto\n\n"
-        f"Natural, dinamico, espanol. Minimo 10 intercambios.\n\nCONTENIDO:\n{context[:6000]}",
-        max_tokens=3000)
+    """
+    Genera guion de podcast optimizado para ~10 minutos de audio.
+    La IA resume y explica el contenido de forma concisa.
+    """
+    # Calcular límite: ~150 palabras = 1 minuto → 10 min = ~1500 palabras
+    prompt = (
+        f"Crea un guion de podcast educativo de MAXIMO 10 MINUTOS (~1500 palabras).\n"
+        f"IMPORTANTE: Resume y explica SOLO lo mas importante del contenido.\n"
+        f"Formato EXACTO:\n"
+        f"[PROFESOR]: Bienvenidos a PERCI TC PRO. Hoy hablaremos sobre...\n"
+        f"[ASISTENTE]: Excelente tema. ¿Podrias explicar...?\n"
+        f"[PROFESOR]: Claro, lo principal es...\n\n"
+        f"Reglas:\n"
+        f"- Natural, conversacional, dinamico\n"
+        f"- Minimo 10 intercambios, maximo 20\n"
+        f"- Enfocate en conceptos clave, no en todos los detalles\n"
+        f"- Cada dialogo: 2-4 oraciones MAX\n"
+        f"- IMPORTANTE: NO exceder 1500 palabras totales\n\n"
+        f"CONTENIDO A RESUMIR:\n{context[:8000]}"
+    )
+    
+    t = await _llm(SYS, prompt, max_tokens=3000)
     return {"type": "audio_script", "content": t}
 
 
-# ── TTS — ElevenLabs (principal) + OpenAI (fallback) ──────────────────────────
+# ── TTS con gTTS (Google Text-to-Speech - GRATIS) ─────────────────────────────
 
-async def _tts_elevenlabs(text: str, voice_id: str) -> bytes:
-    """Genera audio con ElevenLabs."""
-    import httpx
-    url  = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
-    body = {
-        "text": text,
-        "model_id": "eleven_multilingual_v2",
-        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
-    }
-    headers = {
-        "xi-api-key": ELEVENLABS_API_KEY,
-        "Content-Type": "application/json",
-        "Accept": "audio/mpeg",
-    }
-    async with httpx.AsyncClient(timeout=60) as h:
-        r = await h.post(url, json=body, headers=headers)
-        r.raise_for_status()
-        return r.content
-
-
-async def tts(text: str, voice: str = TTS_VOICE_PROFESOR) -> bytes:
+async def tts(text: str, voice: str = "es") -> bytes:
     """
-    TTS con prioridad:
-    1. ElevenLabs (voces naturales en español)
-    2. OpenAI TTS (fallback si no hay ElevenLabs)
+    Genera audio con gTTS (Google TTS - 100% GRATIS).
+    Funciona bien en español, sin límites de uso.
     """
+    from gtts import gTTS
+    import io
     import logging
+    
     log = logging.getLogger("perci.tts")
     
-    # Mapear nombre de voz a ID de ElevenLabs
-    voice_map = {
-        TTS_VOICE_PROFESOR:   ELEVENLABS_VOICES["profesor"],
-        TTS_VOICE_ASISTENTE:  ELEVENLABS_VOICES["asistente"],
-        TTS_VOICE_ESTUDIANTE: ELEVENLABS_VOICES["estudiante"],
-        "onyx":    ELEVENLABS_VOICES["profesor"],
-        "nova":    ELEVENLABS_VOICES["asistente"],
-        "shimmer": ELEVENLABS_VOICES["estudiante"],
-    }
-
-    # Intentar ElevenLabs primero
-    if ELEVENLABS_API_KEY:
-        try:
-            voice_id = voice_map.get(voice, ELEVENLABS_VOICES["profesor"])
-            return await _tts_elevenlabs(text, voice_id)
-        except Exception as e:
-            log.warning(f"ElevenLabs fallo: {e}. Usando OpenAI fallback...")
-
-    # Fallback: OpenAI TTS
     try:
-        return await ai_router.tts(text, voice)
+        log.info(f"Generando audio con gTTS (idioma: {voice}, {len(text)} caracteres)")
+        
+        # Generar audio
+        tts_obj = gTTS(text=text, lang=voice, slow=False)
+        
+        # Guardar en memoria
+        audio_buffer = io.BytesIO()
+        tts_obj.write_to_fp(audio_buffer)
+        audio_buffer.seek(0)
+        
+        audio_bytes = audio_buffer.read()
+        log.info(f"✓ Audio generado: {len(audio_bytes)} bytes")
+        
+        return audio_bytes
+        
     except Exception as e:
-        log.error(f"OpenAI TTS también falló: {e}")
-        raise RuntimeError("Audio no disponible. Verifica ELEVENLABS_API_KEY o OPENAI_API_KEY en Render.")
+        log.error(f"Error generando audio con gTTS: {e}")
+        raise RuntimeError(f"⚠️ Error al generar audio: {str(e)}")
 
 
 async def podcast_audio(script: str) -> bytes:
-    """Genera audio de podcast con multiples voces."""
-    parts = []
+    """
+    Genera audio de podcast con gTTS.
+    Combina todas las líneas en un solo audio continuo.
+    """
+    import logging
+    log = logging.getLogger("perci.podcast")
+    
+    # Limpiar script y combinar todo el texto
+    clean_lines = []
     for line in script.split("\n"):
         line = line.strip()
-        if   line.startswith("[PROFESOR]:"):
-            parts.append(await tts(line[11:].strip(), TTS_VOICE_PROFESOR))
+        if line.startswith("[PROFESOR]:"):
+            clean_lines.append(line[11:].strip())
         elif line.startswith("[ASISTENTE]:"):
-            parts.append(await tts(line[12:].strip(), TTS_VOICE_ASISTENTE))
+            clean_lines.append(line[12:].strip())
         elif line.startswith("[ESTUDIANTE]:"):
-            parts.append(await tts(line[13:].strip(), TTS_VOICE_ESTUDIANTE))
-    return b"".join(parts)
+            clean_lines.append(line[13:].strip())
+        elif line and not line.startswith("["):
+            clean_lines.append(line)
+    
+    # Unir todo el texto con pausas
+    full_text = ". ".join(clean_lines)
+    
+    log.info(f"Generando podcast: {len(full_text)} caracteres, ~{len(full_text.split())} palabras")
+    
+    # Generar audio completo
+    return await tts(full_text, "es")
 
 
 # ── Dispatcher ─────────────────────────────────────────────────────────────────
