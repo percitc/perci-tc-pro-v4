@@ -167,3 +167,126 @@
   color: #9ca3af;
   margin-top: 6px;
 }
+/* Mejorar el mensaje de bienvenida */
+.msg.assistant .prose h1 {
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+
+.msg.assistant .prose h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #3b82f6;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  border-bottom: 2px solid rgba(59, 130, 246, 0.2);
+  padding-bottom: 4px;
+}
+
+.msg.assistant .prose h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #8b5cf6;
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+
+.msg.assistant .prose ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 8px 0;
+}
+
+.msg.assistant .prose ul li {
+  padding: 6px 0 6px 24px;
+  position: relative;
+  line-height: 1.6;
+}
+
+.msg.assistant .prose ul li::before {
+  content: "✨";
+  position: absolute;
+  left: 0;
+  font-size: 14px;
+}
+
+.msg.assistant .prose strong {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.msg.assistant .prose em {
+  color: #f59e0b;
+  font-style: normal;
+  font-weight: 500;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.msg.assistant .prose hr {
+  border: none;
+  border-top: 1px solid rgba(100, 116, 139, 0.2);
+  margin: 16px 0;
+}
+
+.msg.assistant .prose code {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+/* Números en listas ordenadas */
+.msg.assistant .prose ol {
+  counter-reset: item;
+  list-style: none;
+  padding-left: 0;
+}
+
+.msg.assistant .prose ol li {
+  counter-increment: item;
+  padding: 6px 0 6px 32px;
+  position: relative;
+}
+
+.msg.assistant .prose ol li::before {
+  content: counter(item);
+  position: absolute;
+  left: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Hacer el texto más legible */
+.msg.assistant .prose p {
+  line-height: 1.7;
+  margin: 8px 0;
+}
+
+/* Blockquotes (si los usas) */
+.msg.assistant .prose blockquote {
+  border-left: 4px solid #10b981;
+  padding-left: 16px;
+  margin: 12px 0;
+  color: #6b7280;
+  font-style: italic;
+  background: rgba(16, 185, 129, 0.05);
+  padding: 12px 16px;
+  border-radius: 4px;
+}
