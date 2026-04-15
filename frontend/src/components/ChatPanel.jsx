@@ -13,7 +13,66 @@ const SUGS = [
   'Explica el concepto mas importante',
   'Resume en 5 puntos clave',
   // NUEVAS sugerencias de generación
-  'Dame un resumen corto',
+  useEffect(() => {
+  if (!sessionId && msgs.length === 0) {
+    setMsgs([{
+      role: 'assistant',
+      content: `# 🎉 ¡Hola! Soy **PERCI TC PRO AI**
+
+Tu asistente educativo con **Inteligencia Artificial Avanzada**.
+
+## 🚀 ¿Qué puedo hacer por ti?
+
+### 📚 **Generar Contenido Educativo:**
+- 📝 **Resúmenes** ejecutivos personalizados
+- 🃏 **Flashcards** para memorización efectiva
+- ❓ **Cuestionarios** con respuestas y explicaciones
+- 📊 **Presentaciones** profesionales listas para usar
+- 🎨 **Infografías** visuales y atractivas
+- 🎓 **Cursos** completos modulares
+- 🎙️ **Audios/Podcasts** educativos en español
+
+### 💬 **Chat Inteligente:**
+- Respondo preguntas sobre tus documentos
+- Explico conceptos complejos de forma simple
+- Te ayudo a estudiar y preparar exámenes
+
+---
+
+## ✨ **Ejemplos de lo que puedes pedirme:**
+
+### 📋 Generación Básica:
+- *"Dame un resumen corto"*
+- *"Crea 30 flashcards avanzadas"*
+- *"Genera un cuestionario de 15 preguntas"*
+
+### 🎯 Generación Personalizada:
+- *"Audio de 10 minutos bien detallado"*
+- *"Resumen básico en 3 párrafos"*
+- *"50 flashcards difíciles para examen"*
+- *"Presentación de 20 slides"*
+
+### 💡 Chat y Consultas:
+- *"¿Cuáles son los puntos principales?"*
+- *"Explícame el concepto de fotosíntesis"*
+- *"Dame 5 conclusiones clave"*
+
+---
+
+## 🎬 **Para empezar:**
+
+1. 📤 Sube un documento en **"Archivos"** (PDF, Word, PowerPoint, etc.)
+2. 💬 Escríbeme lo que necesitas en el chat
+3. ⚡ Recibe tu contenido en segundos
+
+---
+
+💡 **Tip:** Mientras más específico seas, mejores resultados obtendré.
+
+**¡Sube tu primer documento y comencemos! 🚀**`
+    }])
+  }
+}, [])
   'Crea 20 flashcards',
   'Genera un audio de 5 minutos',
 ]
