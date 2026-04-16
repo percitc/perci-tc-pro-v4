@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Send, Loader, Bot, User, AlertTriangle, Download, FileText, File, Play } from 'lucide-react'
+import { Send, Loader, Bot, User, AlertTriangle, Download, FileText, File } from 'lucide-react'
 import { sendChat } from '../utils/api'
 import axios from 'axios'
 import toast from 'react-hot-toast'
@@ -12,7 +12,6 @@ const SUGS = [
   'Cuales son los puntos principales?',
   'Explica el concepto mas importante',
   'Resume en 5 puntos clave',
-  // NUEVAS sugerencias de generación
   'Dame un resumen corto',
   'Crea 20 flashcards',
   'Genera un audio de 5 minutos',
@@ -42,7 +41,59 @@ export default function ChatPanel({sessionId}) {
     if (!sessionId && msgs.length === 0) {
       setMsgs([{
         role: 'assistant',
-        content: 'Hola! Soy **PERCI**. Sube un documento en **Archivos** y preguntame lo que quieras o pídeme que genere contenido educativo.\n\nEjemplos:\n- "Dame un resumen corto"\n- "Crea 30 flashcards avanzadas"\n- "Genera un audio de 10 minutos"'
+        content: `# 🎉 ¡Hola! Soy **PERCI TC PRO AI**
+
+Tu asistente educativo con **Inteligencia Artificial Avanzada**.
+
+## 🚀 ¿Qué puedo hacer por ti?
+
+### 📚 **Generar Contenido Educativo:**
+- 📝 **Resúmenes** ejecutivos personalizados
+- 🃏 **Flashcards** para memorización efectiva
+- ❓ **Cuestionarios** con respuestas y explicaciones
+- 📊 **Presentaciones** profesionales listas para usar
+- 🎨 **Infografías** visuales y atractivas
+- 🎓 **Cursos** completos modulares
+- 🎙️ **Audios/Podcasts** educativos en español
+
+### 💬 **Chat Inteligente:**
+- Respondo preguntas sobre tus documentos
+- Explico conceptos complejos de forma simple
+- Te ayudo a estudiar y preparar exámenes
+
+---
+
+## ✨ **Ejemplos de lo que puedes pedirme:**
+
+### 📋 Generación Básica:
+- *"Dame un resumen corto"*
+- *"Crea 30 flashcards avanzadas"*
+- *"Genera un cuestionario de 15 preguntas"*
+
+### 🎯 Generación Personalizada:
+- *"Audio de 10 minutos bien detallado"*
+- *"Resumen básico en 3 párrafos"*
+- *"50 flashcards difíciles para examen"*
+- *"Presentación de 20 slides"*
+
+### 💡 Chat y Consultas:
+- *"¿Cuáles son los puntos principales?"*
+- *"Explícame el concepto de fotosíntesis"*
+- *"Dame 5 conclusiones clave"*
+
+---
+
+## 🎬 **Para empezar:**
+
+1. 📤 Sube un documento en **"Archivos"** (PDF, Word, PowerPoint, etc.)
+2. 💬 Escríbeme lo que necesitas en el chat
+3. ⚡ Recibe tu contenido en segundos
+
+---
+
+💡 **Tip:** Mientras más específico seas, mejores resultados obtendré.
+
+**¡Sube tu primer documento y comencemos! 🚀**`
       }])
     }
   }, [])
@@ -59,7 +110,7 @@ export default function ChatPanel({sessionId}) {
     try {
       const r = await sendChat(sessionId, q, hist, task)
 
-      // ⭐ NUEVO: Detectar si es generación
+      // Detectar si es generación
       if (r.type === 'generation') {
         setMsgs(p => [...p.slice(0, -1), {
           role: 'assistant',
@@ -164,7 +215,7 @@ export default function ChatPanel({sessionId}) {
                     <ReactMarkdown>{m.content}</ReactMarkdown>
                   </div>
 
-                  {/* ⭐ NUEVO: Mostrar parámetros detectados */}
+                  {/* Mostrar parámetros detectados */}
                   {m.params && (
                     <div className="detected-params">
                       <strong>📊 Parámetros detectados:</strong>
@@ -176,7 +227,7 @@ export default function ChatPanel({sessionId}) {
                     </div>
                   )}
 
-                  {/* ⭐ NUEVO: Mostrar resultado generado */}
+                  {/* Mostrar resultado generado */}
                   {m.generation && (
                     <div className="generation-result">
                       <GenerationPreview generation={m.generation} />
@@ -271,14 +322,14 @@ export default function ChatPanel({sessionId}) {
         </div>
 
         <p className="chat-hint">
-          💡 Tip: Pide "crea 30 flashcards" o "audio de 10 min"
+          💡 Tip: Pide "crea 30 flashcards" o "audio de 10 min" · Enter enviar · Shift+Enter nueva línea
         </p>
       </div>
     </div>
   )
 }
 
-// ⭐ NUEVO: Componente para preview del contenido generado
+// Componente para preview del contenido generado
 function GenerationPreview({generation}) {
   const {type, content} = generation
 
